@@ -1,0 +1,14 @@
+# Python environment and generated files
+.venv/
+__pycache__/
+*.pyc
+
+# Local editor settings
+.idea/
+
+# Credentials and local configuration
+.env
+.env.*
+
+# Downloaded source data
+data/raw/
