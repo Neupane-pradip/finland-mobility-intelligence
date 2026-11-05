@@ -36,7 +36,7 @@ def validate_stop_ids(rows):
             f"{duplicate_ids} repeated occurrences"
         )
 
-    return total_stops
+    return total_stops, seen_ids
 
 def validate_trip_routes(rows, route_ids):
     """Check that every trip references a route in the lookup."""
@@ -98,6 +98,108 @@ def validate_route_ids(rows):
 
     return route_ids
 
+def validate_trip_ids(rows):
+    """Reject blank or repeated trip IDs and return the valid ID set."""
+
+    trip_ids = set()
+    total_trips = 0
+
+    for row in rows:
+        total_trips += 1
+        trip_id = row["trip_id"]
+
+        # Preserve the original ID, including any leading zeros.
+        if not trip_id.strip():
+            raise ValueError(
+                f"Blank trip_id in trip record {total_trips}"
+            )
+
+        # Check before adding so the set cannot hide duplicates.
+        if trip_id in trip_ids:
+            raise ValueError(f"Duplicate trip_id: {trip_id!r}")
+
+        trip_ids.add(trip_id)
+
+    if total_trips == 0:
+        raise ValueError("No trip records")
+
+    return trip_ids
+
+def validate_stop_time_references(rows, trip_ids, stop_ids):
+    """Check that each stop visit references an existing trip and stop."""
+
+    total_rows = 0
+    invalid_rows = 0
+    examples = []
+
+    for row in rows:
+        total_rows += 1
+        trip_id = row["trip_id"]
+        stop_id = row["stop_id"]
+
+        trip_exists = trip_id in trip_ids
+        stop_exists = stop_id in stop_ids
+
+        if not trip_exists or not stop_exists:
+            # Count an invalid row once, even if both references fail.
+            invalid_rows += 1
+
+            if len(examples) < 3:
+                examples.append(
+                    f"record={total_rows}, "
+                    f"trip_id={trip_id!r}, stop_id={stop_id!r}"
+                )
+
+    if total_rows == 0:
+        raise ValueError("No stop-time records")
+
+    if invalid_rows > 0:
+        raise ValueError(
+            f"Stop-time reference validation failed: "
+            f"{invalid_rows} invalid rows. "
+            f"Examples: {'; '.join(examples)}"
+        )
+
+    return total_rows
+
+def validate_stop_time_keys(rows):
+    """Check sequence values and reject repeated trip/sequence pairs."""
+
+    seen_keys = set()
+    total_rows = 0
+
+    for row in rows:
+        total_rows += 1
+        trip_id = row["trip_id"]
+        sequence_text = row["stop_sequence"]
+
+        # Require nonnegative whole numbers written with ASCII digits.
+        if (
+            not sequence_text
+            or not sequence_text.isascii()
+            or not sequence_text.isdecimal()
+        ):
+            raise ValueError(
+                f"Invalid stop_sequence in record {total_rows}: "
+                f"{sequence_text!r}"
+            )
+
+        # Compare sequences numerically: "01" and "1" mean the same value.
+        sequence = int(sequence_text)
+        key = (trip_id, sequence)
+
+        if key in seen_keys:
+            raise ValueError(
+                f"Duplicate stop-time key: {key!r}"
+            )
+
+        seen_keys.add(key)
+
+    if total_rows == 0:
+        raise ValueError("No stop-time records")
+
+    return total_rows
+
 def main():
     """Inspect the GTFS archive, validate stops, and collect route IDs."""
 
@@ -127,11 +229,9 @@ def main():
                 reader = csv.DictReader(text_file)
 
                 if not reader.fieldnames or "stop_id" not in reader.fieldnames:
-                    raise ValueError(
-                        "stops.txt is missing the stop_id column"
-                    )
+                    raise ValueError("stops.txt is missing the stop_id column")
 
-                total_stops = validate_stop_ids(reader)
+                total_stops, stop_ids = validate_stop_ids(reader)
 
                 print(
                     f"PASS: {total_stops} stop records "
@@ -180,6 +280,77 @@ def main():
                 print(
                     f"PASS: {total_trips} trip records "
                     "reference existing routes"
+
+            )
+
+        # Read trips again to validate and collect their identifiers.
+        with archive.open("trips.txt") as raw_file:
+            with TextIOWrapper(
+                raw_file,
+                encoding="utf-8-sig",
+                newline="",
+            ) as text_file:
+                reader = csv.DictReader(text_file)
+
+                if not reader.fieldnames or "trip_id" not in reader.fieldnames:
+                    raise ValueError(
+                        "trips.txt is missing the trip_id column"
+                    )
+
+                trip_ids = validate_trip_ids(reader)
+
+                print(
+                    f"PASS: {len(trip_ids)} trip records "
+                    "have nonblank, unique IDs"
+                )
+
+        # Read the large table progressively without extracting it.
+        with archive.open("stop_times.txt") as raw_file:
+            with TextIOWrapper(
+                raw_file,
+                encoding="utf-8-sig",
+                newline="",
+            ) as text_file:
+                reader = csv.DictReader(text_file)
+                required_columns = {"trip_id", "stop_id"}
+
+                if not required_columns.issubset(reader.fieldnames or []):
+                    raise ValueError(
+                        "stop_times.txt must contain trip_id and stop_id"
+                    )
+
+                total_stop_times = validate_stop_time_references(
+                    reader,
+                    trip_ids,
+                    stop_ids,
+                )
+
+                print(
+                    f"PASS: {total_stop_times} stop-time records "
+                    "reference existing trips and stops"
+                )
+
+        # Reopen the file because the previous reader is exhausted.
+        with archive.open("stop_times.txt") as raw_file:
+            with TextIOWrapper(
+                raw_file,
+                encoding="utf-8-sig",
+                newline="",
+            ) as text_file:
+                reader = csv.DictReader(text_file)
+                required_columns = {"trip_id", "stop_sequence"}
+
+                if not required_columns.issubset(reader.fieldnames or []):
+                    raise ValueError(
+                        "stop_times.txt must contain trip_id "
+                        "and stop_sequence"
+                    )
+
+                total_keys = validate_stop_time_keys(reader)
+
+                print(
+                    f"PASS: {total_keys} stop-time records "
+                    "have valid sequences and unique trip/sequence keys"
                 )
 
 # SECTION 6: Execute only when this file is run directly
