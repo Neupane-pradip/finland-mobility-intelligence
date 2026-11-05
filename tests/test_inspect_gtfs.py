@@ -6,7 +6,9 @@ from scripts.inspect_gtfs import (
     validate_stop_time_references,
     validate_trip_ids,
     validate_trip_routes,
-    validate_stop_time_keys
+    validate_stop_time_keys,
+    collect_service_ids,
+    validate_trip_services
 )
 
 
@@ -252,3 +254,100 @@ class TestStopTimeKeys(unittest.TestCase):
     def test_empty_table_fails(self):
         with self.assertRaisesRegex(ValueError, "No stop-time records"):
             validate_stop_time_keys([])
+
+class TestServiceIds(unittest.TestCase):
+    """Test service collection using synthetic calendar records."""
+
+    def test_distinct_ids_are_collected(self):
+        rows = [
+            {"service_id": "001"},
+            {"service_id": "002"},
+        ]
+
+        self.assertEqual(collect_service_ids(rows), {"001", "002"})
+
+    def test_repeated_service_ids_are_allowed(self):
+        # One service may appear on multiple exception dates.
+        rows = [
+            {"service_id": "service_A"},
+            {"service_id": "service_A"},
+        ]
+
+        self.assertEqual(collect_service_ids(rows), {"service_A"})
+
+    def test_blank_id_fails(self):
+        for blank in ("", "   "):
+            with self.subTest(service_id=blank):
+                with self.assertRaisesRegex(ValueError, "Blank service_id"):
+                    collect_service_ids([{"service_id": blank}])
+
+    def test_empty_input_returns_empty_set(self):
+        # An individual calendar file may contribute no IDs.
+        # main() separately rejects an empty combined lookup.
+        self.assertEqual(collect_service_ids([]), set())
+
+    def test_combining_calendars_preserves_additional_services(self):
+        # Synthetic example: a service appears only in calendar_dates.
+        weekly = collect_service_ids([{"service_id": "weekly"}])
+        exceptions = collect_service_ids(
+            [{"service_id": "weekly"}, {"service_id": "special"}]
+        )
+
+        weekly.update(exceptions)
+
+        self.assertEqual(weekly, {"weekly", "special"})
+
+class TestTripServices(unittest.TestCase):
+    """Check service references using synthetic trip records."""
+
+    def test_existing_service_passes(self):
+        # Multiple trips may share one service.
+        rows = [
+            {"trip_id": "trip_A", "service_id": "weekday"},
+            {"trip_id": "trip_B", "service_id": "weekday"},
+        ]
+
+        self.assertEqual(
+            validate_trip_services(rows, {"weekday"}),
+            2,
+        )
+
+    def test_missing_service_fails(self):
+        rows = [
+            {"trip_id": "trip_A", "service_id": "unknown"},
+        ]
+
+        with self.assertRaisesRegex(ValueError, "1 invalid references"):
+            validate_trip_services(rows, {"weekday"})
+
+    def test_blank_service_fails(self):
+        for blank in ("", "   "):
+            with self.subTest(service_id=blank):
+                rows = [
+                    {"trip_id": "trip_A", "service_id": blank},
+                ]
+
+                with self.assertRaisesRegex(
+                    ValueError, "1 invalid references"
+                ):
+                    validate_trip_services(rows, {"weekday"})
+
+    def test_empty_trips_fail(self):
+        with self.assertRaisesRegex(ValueError, "No trip records"):
+            validate_trip_services([], {"weekday"})
+
+    def test_exception_only_service_passes(self):
+        # Build a combined lookup with a service defined only
+        # in synthetic calendar_dates records.
+        services = collect_service_ids(
+            [{"service_id": "weekday"}]
+        )
+        services.update(
+            collect_service_ids([{"service_id": "special"}])
+        )
+
+        rows = [
+            {"trip_id": "trip_special", "service_id": "special"},
+        ]
+
+        self.assertEqual(validate_trip_services(rows, services), 1)

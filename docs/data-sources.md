@@ -17,7 +17,7 @@ The download URL is mutable: its contents may change.
 The SHA-256 fingerprint identifies this downloaded snapshot.
 
 The download date does not establish the timetable's operating dates.
-The complete feed's service-date coverage has not yet been calculated.
+The complete feed's active service-date coverage has not yet been calculated.
 
 The original ZIP is retained locally and excluded from Git.
 
@@ -68,25 +68,46 @@ Results apply to the October 30, 2026 downloaded snapshot.
 - All stop_sequence values pass the nonnegative-integer format check.
 - Every (trip_id, stop_sequence) pair is unique.
 - Sequence values are compared numerically.
-- Sequence gaps are allowed.
+- Sequence gaps and zero values are allowed.
 - Different trips may use the same sequence values.
+
+### Service identifiers and trip references
+
+- calendar.txt contains 175 distinct service IDs.
+- calendar_dates.txt contains 55 distinct service IDs.
+- The combined lookup contains 175 distinct service IDs.
+- All 55 service IDs in calendar_dates.txt also occur in calendar.txt.
+- All 71,447 trips reference a service in the combined lookup.
+
+Service IDs are collected from both calendar files.
+Repeated service IDs are allowed during collection because one service
+can have multiple date exceptions.
+
+This collection step does not check uniqueness of calendar.service_id
+or of the (service_id, date) key in calendar_dates.txt.
+
+A known service identifier does not by itself establish valid
+operating dates or guarantee that the service has active dates.
 
 ## Automated tests
 
-The test suite currently contains 28 passing tests.
+The test suite currently contains 38 passing tests.
 
 Tests use synthetic records rather than the downloaded feed.
 They cover:
 
 - Valid identifiers and references.
-- Blank identifiers.
-- Duplicate identifiers.
+- Blank identifiers and references.
+- Duplicate stop, route, and trip identifiers.
 - Empty tables.
-- Missing route, trip, and stop references.
+- Missing route, trip, stop, and service references.
 - Duplicate trip/sequence pairs.
 - Numerically equivalent sequence values.
 - Invalid sequence formats.
 - Allowed sequence gaps and zero values.
+- Repeated service IDs during calendar lookup collection.
+- Combining service IDs from both calendar files.
+- Trip references to services defined only through calendar exceptions.
 
 Run the real-feed inspection from the project folder:
 
@@ -102,9 +123,13 @@ These checks do not establish full GTFS compliance.
 
 The script does not yet validate:
 
-- Trip service_id references to the calendar files.
-- Calendar date ranges, weekday flags, or exceptions.
-- Complete service-date coverage.
+- Calendar primary-key uniqueness.
+- Calendar date formats and actual date validity.
+- Calendar date-range ordering.
+- Weekday flags.
+- Calendar exception types.
+- Conflicting or duplicate service-date exceptions.
+- Complete active service-date coverage.
 - Arrival and departure time formats.
 - Chronological progression within trips.
 - Required arrival/departure times at applicable stops.
