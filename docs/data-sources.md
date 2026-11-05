@@ -16,3 +16,18 @@
 The download URL is mutable: its contents may change.
 The fingerprint identifies this downloaded snapshot.
 The timetable's service-date coverage has not yet been inspected.
+
+## Initial Python validation results
+
+For the October 30, 2026 downloaded snapshot:
+
+- 3,429 stop records: stop IDs are nonblank and unique.
+- 105 route records: route IDs are nonblank and unique.
+- 71,447 trip records: every route reference exists in routes.txt.
+
+Synthetic unit tests cover valid inputs, blank IDs,
+duplicate IDs, empty tables, and missing route references.
+
+These checks do not establish full GTFS compliance.
+Trip-ID uniqueness, stop-time relationships, service calendars,
+coordinates, and time values are not yet validated by the script.

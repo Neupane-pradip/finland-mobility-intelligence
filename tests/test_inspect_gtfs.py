@@ -1,6 +1,10 @@
 import unittest
 
-from scripts.inspect_gtfs import validate_stop_ids, validate_trip_routes
+from scripts.inspect_gtfs import (
+    validate_route_ids,
+    validate_stop_ids,
+    validate_trip_routes,
+)
 
 
 class TestStopIds(unittest.TestCase):
@@ -68,3 +72,35 @@ class TestTripRoutes(unittest.TestCase):
     def test_empty_trips_fail(self):
         with self.assertRaisesRegex(ValueError, "No trip records"):
             validate_trip_routes([], {"1"})
+
+class TestRouteIds(unittest.TestCase):
+    """Test route IDs using synthetic records."""
+
+    def test_unique_ids_pass(self):
+        rows = [
+            {"route_id": "01"},
+            {"route_id": "10"},
+        ]
+
+        # Return the lookup while preserving IDs as text.
+        self.assertEqual(validate_route_ids(rows), {"01", "10"})
+
+    def test_duplicate_ids_fail(self):
+        rows = [
+            {"route_id": "1"},
+            {"route_id": "1"},
+        ]
+
+        with self.assertRaisesRegex(ValueError, "Duplicate route_id"):
+            validate_route_ids(rows)
+
+    def test_blank_id_fails(self):
+        # Check both an empty value and whitespace.
+        for blank in ("", "   "):
+            with self.subTest(route_id=blank):
+                with self.assertRaisesRegex(ValueError, "Blank route_id"):
+                    validate_route_ids([{"route_id": blank}])
+
+    def test_empty_table_fails(self):
+        with self.assertRaisesRegex(ValueError, "No route records"):
+            validate_route_ids([])

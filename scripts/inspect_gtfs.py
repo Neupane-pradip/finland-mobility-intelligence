@@ -71,6 +71,33 @@ def validate_trip_routes(rows, route_ids):
 
     return total_trips
 
+def validate_route_ids(rows):
+    """Reject blank or repeated route IDs and return the valid ID set."""
+
+    route_ids = set()
+    total_routes = 0
+
+    for row in rows:
+        total_routes += 1
+        route_id = row["route_id"]
+
+        # Preserve the original ID, but reject whitespace-only values.
+        if not route_id.strip():
+            raise ValueError(
+                f"Blank route_id in route record {total_routes}"
+            )
+
+        # Check before adding: a set would otherwise hide duplicates.
+        if route_id in route_ids:
+            raise ValueError(f"Duplicate route_id: {route_id!r}")
+
+        route_ids.add(route_id)
+
+    if total_routes == 0:
+        raise ValueError("No route records")
+
+    return route_ids
+
 def main():
     """Inspect the GTFS archive, validate stops, and collect route IDs."""
 
@@ -125,12 +152,12 @@ def main():
                         "routes.txt is missing the route_id column"
                     )
 
-                route_ids = set()
+                route_ids = validate_route_ids(reader)
 
-                for row in reader:
-                    route_ids.add(row["route_id"])
-
-                print("Distinct route IDs:", len(route_ids))
+                print(
+                    f"PASS: {len(route_ids)} route records "
+                    "have nonblank, unique IDs"
+                )
 
         # Check trips against the route IDs collected above.
         with archive.open("trips.txt") as raw_file:
