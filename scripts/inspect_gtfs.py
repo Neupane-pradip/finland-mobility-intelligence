@@ -4,12 +4,11 @@ from pathlib import Path
 from zipfile import ZipFile
 
 
+# SECTION 1: Reusable stop-ID validation
 def validate_stop_ids(rows):
     """Check stop IDs and return the record count if validation passes."""
 
-    # A set lets us check whether an ID has already appeared.
     seen_ids = set()
-
     total_stops = 0
     empty_ids = 0
     duplicate_ids = 0
@@ -17,11 +16,10 @@ def validate_stop_ids(rows):
     for row in rows:
         total_stops += 1
 
-        # Keep IDs as text so leading zeros are preserved.
+        # Preserve the original text, including leading zeros.
         stop_id = row["stop_id"]
 
-        # strip() detects empty or whitespace-only IDs.
-        # It does not change the original stop_id.
+        # Check for blank IDs without changing the original value.
         if not stop_id.strip():
             empty_ids += 1
         elif stop_id in seen_ids:
@@ -29,11 +27,9 @@ def validate_stop_ids(rows):
         else:
             seen_ids.add(stop_id)
 
-    # An empty table should not pass just because it has no duplicates.
     if total_stops == 0:
         raise ValueError("No stop records")
 
-    # Reject missing or repeated IDs instead of silently accepting them.
     if empty_ids > 0 or duplicate_ids > 0:
         raise ValueError(
             f"Stop ID validation failed: {empty_ids} empty IDs, "
@@ -42,12 +38,43 @@ def validate_stop_ids(rows):
 
     return total_stops
 
+def validate_trip_routes(rows, route_ids):
+    """Check that every trip references a route in the lookup."""
+
+    total_trips = 0
+    invalid_references = 0
+    examples = []
+
+    for row in rows:
+        total_trips += 1
+        route_id = row["route_id"]
+
+        # Reject blank references and IDs absent from routes.txt.
+        if not route_id.strip() or route_id not in route_ids:
+            invalid_references += 1
+
+            # Keep only a few examples so error messages stay manageable.
+            if len(examples) < 3:
+                examples.append(
+                    f"trip_id={row['trip_id']!r}, route_id={route_id!r}"
+                )
+
+    if total_trips == 0:
+        raise ValueError("No trip records")
+
+    if invalid_references > 0:
+        raise ValueError(
+            f"Trip route validation failed: "
+            f"{invalid_references} invalid references. "
+            f"Examples: {'; '.join(examples)}"
+        )
+
+    return total_trips
 
 def main():
-    """Inspect the downloaded ZIP and validate its stop IDs."""
+    """Inspect the GTFS archive, validate stops, and collect route IDs."""
 
-    # Find the project folder relative to this script.
-    # This avoids depending on the terminal's working directory.
+    # SECTION 2: Locate the original download
     project_root = Path(__file__).resolve().parent.parent
     zip_path = project_root / "data" / "raw" / "gtfs_tampere.zip"
 
@@ -55,31 +82,27 @@ def main():
     print("ZIP file:", zip_path)
     print("ZIP exists:", zip_path.is_file())
 
-    # Stop with a clear message if the download is missing.
     if not zip_path.is_file():
         raise FileNotFoundError(f"GTFS ZIP not found: {zip_path}")
 
-    # Open the original ZIP for reading without extracting it.
-    # The with block closes it automatically.
+    # SECTION 3: Open the ZIP and list its contents
     with ZipFile(zip_path, "r") as archive:
         for entry in archive.infolist():
             print(entry.filename, entry.file_size)
 
-        # Read stops.txt directly from inside the archive.
+        # SECTION 4: Read and validate the stop records
         with archive.open("stops.txt") as raw_file:
-            # Decode bytes into text.
-            # utf-8-sig also handles an optional UTF-8 byte-order mark.
             with TextIOWrapper(
                 raw_file,
                 encoding="utf-8-sig",
                 newline="",
             ) as text_file:
-                # Use CSV column names as dictionary keys.
                 reader = csv.DictReader(text_file)
 
-                # Check the header before trying to access stop_id.
                 if not reader.fieldnames or "stop_id" not in reader.fieldnames:
-                    raise ValueError("stops.txt is missing the stop_id column")
+                    raise ValueError(
+                        "stops.txt is missing the stop_id column"
+                    )
 
                 total_stops = validate_stop_ids(reader)
 
@@ -88,8 +111,50 @@ def main():
                     "have nonblank, unique IDs"
                 )
 
+        # SECTION 5: Collect route IDs for the next relationship check
+        with archive.open("routes.txt") as raw_file:
+            with TextIOWrapper(
+                raw_file,
+                encoding="utf-8-sig",
+                newline="",
+            ) as text_file:
+                reader = csv.DictReader(text_file)
 
-# Run the inspection only when this file is executed directly.
-# Importing validate_stop_ids from a test does not run main().
+                if not reader.fieldnames or "route_id" not in reader.fieldnames:
+                    raise ValueError(
+                        "routes.txt is missing the route_id column"
+                    )
+
+                route_ids = set()
+
+                for row in reader:
+                    route_ids.add(row["route_id"])
+
+                print("Distinct route IDs:", len(route_ids))
+
+        # Check trips against the route IDs collected above.
+        with archive.open("trips.txt") as raw_file:
+            with TextIOWrapper(
+                raw_file,
+                encoding="utf-8-sig",
+                newline="",
+            ) as text_file:
+                reader = csv.DictReader(text_file)
+
+                required_columns = {"trip_id", "route_id"}
+
+                if not required_columns.issubset(reader.fieldnames or []):
+                    raise ValueError(
+                        "trips.txt must contain trip_id and route_id"
+                    )
+
+                total_trips = validate_trip_routes(reader, route_ids)
+
+                print(
+                    f"PASS: {total_trips} trip records "
+                    "reference existing routes"
+                )
+
+# SECTION 6: Execute only when this file is run directly
 if __name__ == "__main__":
     main()

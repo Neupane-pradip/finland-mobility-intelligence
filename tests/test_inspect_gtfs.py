@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.inspect_gtfs import validate_stop_ids
+from scripts.inspect_gtfs import validate_stop_ids, validate_trip_routes
 
 
 class TestStopIds(unittest.TestCase):
@@ -38,3 +38,33 @@ class TestStopIds(unittest.TestCase):
         # No records should trigger an error.
         with self.assertRaisesRegex(ValueError, "No stop records"):
             validate_stop_ids([])
+
+class TestTripRoutes(unittest.TestCase):
+    """Use synthetic records to test trip-to-route references."""
+
+    def test_existing_route_passes(self):
+        # Multiple trips may legitimately share one route.
+        rows = [
+            {"trip_id": "trip_A", "route_id": "1"},
+            {"trip_id": "trip_B", "route_id": "1"},
+        ]
+
+        self.assertEqual(validate_trip_routes(rows, {"1"}), 2)
+
+    def test_missing_route_fails(self):
+        # Route 99 is absent from the route lookup.
+        rows = [{"trip_id": "trip_A", "route_id": "99"}]
+
+        with self.assertRaisesRegex(ValueError, "1 invalid references"):
+            validate_trip_routes(rows, {"1"})
+
+    def test_blank_route_fails(self):
+        # A whitespace-only route reference is invalid.
+        rows = [{"trip_id": "trip_A", "route_id": "   "}]
+
+        with self.assertRaisesRegex(ValueError, "1 invalid references"):
+            validate_trip_routes(rows, {"1"})
+
+    def test_empty_trips_fail(self):
+        with self.assertRaisesRegex(ValueError, "No trip records"):
+            validate_trip_routes([], {"1"})
