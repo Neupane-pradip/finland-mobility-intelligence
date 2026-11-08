@@ -1,0 +1,70 @@
+{
+  "input_path": "C:\\Users\\jejsj\\finland_mobility_inteligence\\data\\raw\\gtfs_tampere.zip",
+  "input_bytes": 18339552,
+  "sha256": "356c1f1058e2305ac34f553146b19de5b351edc26f060ef8e299414885f8e3a6",
+  "inspected_at_utc": "2026-11-08T16:55:13.150564+00:00",
+  "archive_files": [
+    "trips.txt",
+    "agency.txt",
+    "calendar.txt",
+    "calendar_dates.txt",
+    "fare_attributes.txt",
+    "fare_rules.txt",
+    "municipalities.txt",
+    "routes.txt",
+    "shapes.txt",
+    "stop_times.txt",
+    "stops.txt",
+    "transfers.txt"
+  ],
+  "counts": {
+    "agency": 1,
+    "stops": 3429,
+    "routes": 105,
+    "trips": 71447,
+    "stop_times": 2328188,
+    "calendar": 175,
+    "calendar_dates": 353,
+    "combined_services": 175
+  },
+  "agency_timezones": [
+    "Europe/Helsinki"
+  ],
+  "stop_times": {
+    "rows": 2328188,
+    "after_midnight_rows": 68163,
+    "after_midnight_example": {
+      "trip_id": "134_20179_17848766",
+      "arrival_time": "24:00:15",
+      "departure_time": "24:00:15",
+      "stop_id": "3634",
+      "stop_sequence": "23",
+      "stop_headsign": "",
+      "pickup_type": "0",
+      "drop_off_type": "0",
+      "timepoint": "0"
+    },
+    "maximum_service_day_seconds": 102300,
+    "rows_with_missing_times": 0
+  },
+  "service_dates_for_trips": {
+    "first": "2026-10-17",
+    "last": "2027-06-06",
+    "distinct_dates": 233,
+    "services_without_active_dates": []
+  },
+  "warnings": [],
+  "scope_and_limitations": [
+    "Conventional fixed-stop schedules only; not full GTFS compliance validation.",
+    "Coordinates, location types, agency IDs, timezone names, route types and most enums are not validated.",
+    "Shapes, fares, transfers and other optional relationships are not validated.",
+    "Not every required or conditionally required GTFS field is checked.",
+    "On-demand locations and time windows are unsupported.",
+    "Redundant calendar exceptions and stable IDs across snapshots are not checked.",
+    "Endpoint times are required by project policy; hours have one or two digits.",
+    "No UTC event conversion or realtime compatibility validation is performed.",
+    "Service date bounds do not imply service on every intervening date.",
+    "Times after midnight do not extend service-date coverage.",
+    "Planned schedules do not establish actual arrivals, demand or reliability."
+  ]
+}
