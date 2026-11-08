@@ -1,0 +1,70 @@
+{
+  "input_path": "C:\\Users\\jejsj\\finland_mobility_inteligence\\data\\raw\\snapshots\\ed02e932e7536a6fd930bb6fc44638cc3a522105c61136a287f52f33924f3d19.zip",
+  "input_bytes": 16911577,
+  "sha256": "ed02e932e7536a6fd930bb6fc44638cc3a522105c61136a287f52f33924f3d19",
+  "inspected_at_utc": "2026-11-08T18:13:28.965243+00:00",
+  "archive_files": [
+    "agency.txt",
+    "calendar.txt",
+    "calendar_dates.txt",
+    "fare_attributes.txt",
+    "fare_rules.txt",
+    "municipalities.txt",
+    "routes.txt",
+    "shapes.txt",
+    "stop_times.txt",
+    "stops.txt",
+    "transfers.txt",
+    "trips.txt"
+  ],
+  "counts": {
+    "agency": 1,
+    "stops": 3429,
+    "routes": 105,
+    "trips": 63699,
+    "stop_times": 2121841,
+    "calendar": 138,
+    "calendar_dates": 207,
+    "combined_services": 138
+  },
+  "agency_timezones": [
+    "Europe/Helsinki"
+  ],
+  "stop_times": {
+    "rows": 2121841,
+    "after_midnight_rows": 65191,
+    "after_midnight_example": {
+      "trip_id": "135_20322_17661590",
+      "arrival_time": "24:36:00",
+      "departure_time": "24:36:00",
+      "stop_id": "0001",
+      "stop_sequence": "1",
+      "stop_headsign": "",
+      "pickup_type": "0",
+      "drop_off_type": "1",
+      "timepoint": "1"
+    },
+    "maximum_service_day_seconds": 102300,
+    "rows_with_missing_times": 0
+  },
+  "service_dates_for_trips": {
+    "first": "2026-10-31",
+    "last": "2027-02-28",
+    "distinct_dates": 121,
+    "services_without_active_dates": []
+  },
+  "warnings": [],
+  "scope_and_limitations": [
+    "Conventional fixed-stop schedules only; not full GTFS compliance validation.",
+    "Coordinates, location types, agency IDs, timezone names, route types and most enums are not validated.",
+    "Shapes, fares, transfers and other optional relationships are not validated.",
+    "Not every required or conditionally required GTFS field is checked.",
+    "On-demand locations and time windows are unsupported.",
+    "Redundant calendar exceptions and stable IDs across snapshots are not checked.",
+    "Endpoint times are required by project policy; hours have one or two digits.",
+    "No UTC event conversion or realtime compatibility validation is performed.",
+    "Service date bounds do not imply service on every intervening date.",
+    "Times after midnight do not extend service-date coverage.",
+    "Planned schedules do not establish actual arrivals, demand or reliability."
+  ]
+}
